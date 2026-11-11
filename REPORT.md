@@ -23,17 +23,17 @@
 4. `review.js` дополнительно отфильтровывает binary / `dist` / `generated` / `*.lock`.
 5. Порог: **800 строк** или **40 файлов** → комментарий «PR is too large…, review skipped», модель не вызывается.
 6. В prompt уходят только: `.github/review-instructions.md` + отфильтрованный diff (не весь репозиторий).
-7. Модель (Anthropic) должна вернуть structured JSON `{ "comments": [...] }`.
+7. Модель (OpenAI `gpt-4o-mini`) должна вернуть structured JSON `{ "comments": [...] }`.
 8. Результат публикуется комментарием в PR через `actions/github-script@v7`.
 9. При timeout / HTTP error / битом JSON — fallback-комментарий, **exit code 0** (CI не красный).
 
 ### Почему порог 800 / 40
 
-Sonnet-контекст ограничен; сырой unified diff раздут. 800 строк ≈ компактный feature-PR. Mega-рефакторинги лучше ревьюить человеком / чанками. Числа зафиксированы в `review.js` (`MAX_DIFF_LINES`, `MAX_CHANGED_FILES`).
+Контекст модели ограничен; сырой unified diff раздут. 800 строк ≈ компактный feature-PR. Mega-рефакторинги лучше ревьюить человеком / чанками. Числа зафиксированы в `review.js` (`MAX_DIFF_LINES`, `MAX_CHANGED_FILES`).
 
 ### Безопасность
 
-- `ANTHROPIC_API_KEY` только в GitHub Secrets → env step.
+- `OPENAI_API_KEY` только в GitHub Secrets → env step.
 - Permissions: `contents: read`, `pull-requests: write` (минимум для checkout + comment).
 - В коде/логах ключ не печатается; в post-comment есть redaction `sk-ant-…`.
 
@@ -73,7 +73,7 @@ node scripts/score-review.js review.json
 | **recall** = TP/(TP+FN) | _TBD_ |
 | false positives (шт.) | _TBD_ |
 
-Таблица заполняется после первого успешного прогона с валидным `ANTHROPIC_API_KEY`.
+Таблица заполняется после первого успешного прогона с валидным `OPENAI_API_KEY`.
 
 ## 5. Качество ревьюера (краткий разбор)
 

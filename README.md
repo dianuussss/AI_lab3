@@ -1,6 +1,6 @@
 # Lab 3 — AI code-review бот в CI
 
-Свой pipeline (не готовый Action): GitHub Actions читает **three-dot diff** PR, вызывает Anthropic Claude по чеклисту `.github/review-instructions.md` и публикует комментарий в PR.
+Свой pipeline (не готовый Action): GitHub Actions читает **three-dot diff** PR, вызывает OpenAI (`gpt-4o-mini`) по чеклисту `.github/review-instructions.md` и публикует комментарий в PR.
 
 ## Что внутри
 
@@ -17,15 +17,15 @@
 
 Repository → **Settings → Secrets and variables → Actions → New repository secret**:
 
-- Name: `ANTHROPIC_API_KEY`
-- Value: ключ Anthropic
+- Name: `OPENAI_API_KEY`
+- Value: ключ OpenAI с https://platform.openai.com/api-keys
 
-Ключ **не** кладётся в код и не печатается в логах.
+Ключ **не** кладётся в код и не печатается в логах. Cursor для CI не подходит — нужен именно API-ключ OpenAI.
 
 ## Локальный прогон review
 
 ```bash
-export ANTHROPIC_API_KEY=...
+export OPENAI_API_KEY=...
 git diff main...HEAD -- . ':(exclude)*.lock' ':(exclude)dist/*' ':(exclude)generated/*' > diff.txt
 node review.js diff.txt
 ```

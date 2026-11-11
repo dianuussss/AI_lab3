@@ -46,7 +46,7 @@ jobs:
 
       - name: Run review
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: node review.js diff.txt > review.md
         # review.js never exits non-zero on model/JSON failures
 
@@ -65,7 +65,7 @@ jobs:
               body = '## AI Code Review\n\nFallback: пустой вывод review-скрипта.';
             }
             // Avoid accidentally echoing secrets if a future change dumps env
-            body = body.replace(/sk-ant-[A-Za-z0-9_-]+/g, '[redacted]');
+            body = body.replace(/sk-[A-Za-z0-9_-]+/g, '[redacted]');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,

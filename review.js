@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * AI code-review for CI: reads a PR diff, calls Anthropic, prints markdown for a PR comment.
+ * AI code-review for CI: reads a PR diff, calls OpenAI, prints markdown for a PR comment.
  * Never throws uncaught — workflow must stay green even on bad model output / timeouts.
  */
 
@@ -9,8 +9,8 @@ const path = require("path");
 
 const MAX_DIFF_LINES = 800;
 const MAX_CHANGED_FILES = 40;
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514";
-const API_URL = "https://api.anthropic.com/v1/messages";
+const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const API_URL = "https://api.openai.com/v1/chat/completions";
 const REQUEST_TIMEOUT_MS = 60_000;
 
 const BINARY_HINT =
@@ -158,10 +158,10 @@ function validatePayload(obj) {
   return { comments };
 }
 
-async function callAnthropic(instructions, diff) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+async function callOpenAI(instructions, diff) {
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY is not set");
+    throw new Error("OPENAI_API_KEY is not set");
   }
 
   const system = [
@@ -190,29 +190,26 @@ async function callAnthropic(instructions, diff) {
       signal: controller.signal,
       headers: {
         "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
+        authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 2048,
         temperature: 0,
-        system,
-        messages: [{ role: "user", content: user }],
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
       }),
     });
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
-      throw new Error(`Anthropic HTTP ${res.status}: ${errText.slice(0, 200)}`);
+      throw new Error(`OpenAI HTTP ${res.status}: ${errText.slice(0, 200)}`);
     }
 
     const data = await res.json();
-    const text = (data.content || [])
-      .filter((b) => b.type === "text")
-      .map((b) => b.text)
-      .join("\n");
-    return text;
+    return data.choices?.[0]?.message?.content || "";
   } finally {
     clearTimeout(timer);
   }
@@ -264,7 +261,7 @@ async function main() {
 
   let modelText;
   try {
-    modelText = await callAnthropic(instructions, diff);
+    modelText = await callOpenAI(instructions, diff);
   } catch (err) {
     const msg = err && err.name === "AbortError" ? "timeout" : String(err.message || err);
     process.stdout.write(

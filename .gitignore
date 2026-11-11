@@ -1,0 +1,15 @@
+node_modules/
+diff.txt
+review.md
+review.json
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+dist/
+generated/
+coverage/
+.npm/
+*.lock
+!package-lock.json

@@ -1,0 +1,15 @@
+{
+  "name": "dianuussss-lab3-ai-review",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lab 3: AI code-review bot in GitHub Actions CI",
+  "main": "review.js",
+  "scripts": {
+    "review": "node review.js",
+    "start": "node src/server.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

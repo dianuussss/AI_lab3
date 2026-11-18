@@ -9,7 +9,7 @@ const path = require("path");
 
 const MAX_DIFF_LINES = 800;
 const MAX_CHANGED_FILES = 40;
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 const REQUEST_TIMEOUT_MS = 60_000;
 
 const BINARY_HINT =

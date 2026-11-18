@@ -23,7 +23,7 @@
 4. `review.js` дополнительно отфильтровывает binary / `dist` / `generated` / `*.lock`.
 5. Порог: **800 строк** или **40 файлов** → комментарий «PR is too large…, review skipped», модель не вызывается.
 6. В prompt уходят только: `.github/review-instructions.md` + отфильтрованный diff (не весь репозиторий).
-7. Модель (Google Gemini `gemini-2.0-flash`) должна вернуть structured JSON `{ "comments": [...] }`.
+7. Модель (Google Gemini `gemini-3.8-flash`) должна вернуть structured JSON `{ "comments": [...] }`.
 8. Результат публикуется комментарием в PR через `actions/github-script@v7`.
 9. При timeout / HTTP error / битом JSON — fallback-комментарий, **exit code 0** (CI не красный).
 

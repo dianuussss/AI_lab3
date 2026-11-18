@@ -1,6 +1,6 @@
 # Lab 3 — AI code-review бот в CI
 
-Свой pipeline (не готовый Action): GitHub Actions читает **three-dot diff** PR, вызывает Google Gemini (`gemini-2.0-flash`) по чеклисту `.github/review-instructions.md` и публикует комментарий в PR.
+Свой pipeline (не готовый Action): GitHub Actions читает **three-dot diff** PR, вызывает Google Gemini (`gemini-3.8-flash`) по чеклисту `.github/review-instructions.md` и публикует комментарий в PR.
 
 ## Что внутри
 

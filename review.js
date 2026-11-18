@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * AI code-review for CI: reads a PR diff, calls OpenAI, prints markdown for a PR comment.
+ * AI code-review for CI: reads a PR diff, calls Gemini, prints markdown for a PR comment.
  * Never throws uncaught — workflow must stay green even on bad model output / timeouts.
  */
 
@@ -9,8 +9,7 @@ const path = require("path");
 
 const MAX_DIFF_LINES = 800;
 const MAX_CHANGED_FILES = 40;
-const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
-const API_URL = "https://api.openai.com/v1/chat/completions";
+const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
 const REQUEST_TIMEOUT_MS = 60_000;
 
 const BINARY_HINT =
@@ -158,10 +157,10 @@ function validatePayload(obj) {
   return { comments };
 }
 
-async function callOpenAI(instructions, diff) {
-  const apiKey = process.env.OPENAI_API_KEY;
+async function callGemini(instructions, diff) {
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not set");
+    throw new Error("GEMINI_API_KEY is not set");
   }
 
   const system = [
@@ -181,35 +180,36 @@ async function callOpenAI(instructions, diff) {
     "```",
   ].join("\n");
 
+  const url =
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent` +
+    `?key=${encodeURIComponent(apiKey)}`;
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    const res = await fetch(API_URL, {
+    const res = await fetch(url, {
       method: "POST",
       signal: controller.signal,
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${apiKey}`,
-      },
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model: MODEL,
-        temperature: 0,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ role: "user", parts: [{ text: user }] }],
+        generationConfig: {
+          temperature: 0,
+          responseMimeType: "application/json",
+        },
       }),
     });
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
-      throw new Error(`OpenAI HTTP ${res.status}: ${errText.slice(0, 200)}`);
+      throw new Error(`Gemini HTTP ${res.status}: ${errText.slice(0, 200)}`);
     }
 
     const data = await res.json();
-    return data.choices?.[0]?.message?.content || "";
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    return parts.map((p) => p.text || "").join("\n");
   } finally {
     clearTimeout(timer);
   }
@@ -261,7 +261,7 @@ async function main() {
 
   let modelText;
   try {
-    modelText = await callOpenAI(instructions, diff);
+    modelText = await callGemini(instructions, diff);
   } catch (err) {
     const msg = err && err.name === "AbortError" ? "timeout" : String(err.message || err);
     process.stdout.write(

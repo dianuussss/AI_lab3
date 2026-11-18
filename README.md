@@ -1,6 +1,6 @@
 # Lab 3 — AI code-review бот в CI
 
-Свой pipeline (не готовый Action): GitHub Actions читает **three-dot diff** PR, вызывает OpenAI (`gpt-4o-mini`) по чеклисту `.github/review-instructions.md` и публикует комментарий в PR.
+Свой pipeline (не готовый Action): GitHub Actions читает **three-dot diff** PR, вызывает Google Gemini (`gemini-2.0-flash`) по чеклисту `.github/review-instructions.md` и публикует комментарий в PR.
 
 ## Что внутри
 
@@ -17,15 +17,15 @@
 
 Repository → **Settings → Secrets and variables → Actions → New repository secret**:
 
-- Name: `OPENAI_API_KEY`
-- Value: ключ OpenAI с https://platform.openai.com/api-keys
+- Name: `GEMINI_API_KEY`
+- Value: ключ с https://aistudio.google.com/apikey
 
-Ключ **не** кладётся в код и не печатается в логах. Cursor для CI не подходит — нужен именно API-ключ OpenAI.
+Ключ **не** кладётся в код и не печатается в логах.
 
 ## Локальный прогон review
 
 ```bash
-export OPENAI_API_KEY=...
+export GEMINI_API_KEY=...
 git diff main...HEAD -- . ':(exclude)*.lock' ':(exclude)dist/*' ':(exclude)generated/*' > diff.txt
 node review.js diff.txt
 ```

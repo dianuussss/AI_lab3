@@ -1,0 +1,58 @@
+{
+  "comments": [
+    {
+      "file": "src/search.js",
+      "severity": "error",
+      "message": "SQL-запрос собран через конкатенацию строк с пользовательским вводом",
+      "reason": "sql-injection / string-concat query"
+    },
+    {
+      "file": "src/server.js",
+      "severity": "error",
+      "message": "Захардкоженный секрет/токен в коде",
+      "reason": "hardcoded-secret"
+    },
+    {
+      "file": "src/server.js",
+      "severity": "error",
+      "message": "Использование значения user до проверки на null/undefined",
+      "reason": "logic-bug"
+    },
+    {
+      "file": "src/server.js",
+      "severity": "warning",
+      "message": "Новый endpoint /search добавлен в src/, но в diff нет соответствующего теста в tests/",
+      "reason": "new-endpoint-without-test"
+    },
+    {
+      "file": "src/server.js",
+      "severity": "warning",
+      "message": "Новый endpoint /admin/stats добавлен в src/, но в diff нет соответствующего теста в tests/",
+      "reason": "new-endpoint-without-test"
+    },
+    {
+      "file": "src/server.js",
+      "severity": "warning",
+      "message": "HTTP-вызов fetch без try/catch в async-коде",
+      "reason": "fetch-without-try-catch"
+    },
+    {
+      "file": "src/server.js",
+      "severity": "warning",
+      "message": "Новый endpoint /weather добавлен в src/, но в diff нет соответствующего теста в tests/",
+      "reason": "new-endpoint-without-test"
+    },
+    {
+      "file": "src/search.js",
+      "severity": "info",
+      "message": "Использование var вместо let/const",
+      "reason": "style"
+    },
+    {
+      "file": "src/server.js",
+      "severity": "info",
+      "message": "Использование console.log в src/",
+      "reason": "style"
+    }
+  ]
+}

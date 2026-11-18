@@ -9,8 +9,15 @@ const path = require("path");
 
 const MAX_DIFF_LINES = 800;
 const MAX_CHANGED_FILES = 40;
-const MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+const MODEL_CANDIDATES = (
+  process.env.GEMINI_MODEL ||
+  "gemini-3.8-flash,gemini-2.5-flash,gemini-flash-latest,gemini-1.5-flash"
+)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 const REQUEST_TIMEOUT_MS = 60_000;
+const MAX_ATTEMPTS_PER_MODEL = 3;
 
 const BINARY_HINT =
   /\.(png|jpe?g|gif|webp|ico|pdf|zip|gz|tgz|bz2|xz|7z|rar|exe|dll|so|dylib|bin|wasm|mp[34]|wav|avi|mov|woff2?|ttf|eot|class|o|a|pyc|pickle)$/i;
@@ -157,6 +164,48 @@ function validatePayload(obj) {
   return { comments };
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function callGeminiOnce(apiKey, model, system, user) {
+  const url =
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent` +
+    `?key=${encodeURIComponent(apiKey)}`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      signal: controller.signal,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ role: "user", parts: [{ text: user }] }],
+        generationConfig: {
+          temperature: 0,
+          responseMimeType: "application/json",
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      const err = new Error(`Gemini HTTP ${res.status}: ${errText.slice(0, 200)}`);
+      err.status = res.status;
+      throw err;
+    }
+
+    const data = await res.json();
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    return parts.map((p) => p.text || "").join("\n");
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function callGemini(instructions, diff) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -180,39 +229,27 @@ async function callGemini(instructions, diff) {
     "```",
   ].join("\n");
 
-  const url =
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent` +
-    `?key=${encodeURIComponent(apiKey)}`;
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      signal: controller.signal,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: "user", parts: [{ text: user }] }],
-        generationConfig: {
-          temperature: 0,
-          responseMimeType: "application/json",
-        },
-      }),
-    });
-
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "");
-      throw new Error(`Gemini HTTP ${res.status}: ${errText.slice(0, 200)}`);
+  const errors = [];
+  for (const model of MODEL_CANDIDATES) {
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_MODEL; attempt++) {
+      try {
+        return await callGeminiOnce(apiKey, model, system, user);
+      } catch (err) {
+        const status = err && err.status;
+        const msg = String(err.message || err);
+        errors.push(`${model}#${attempt}: ${msg}`);
+        // retry transient overload / rate limits; skip dead models quickly
+        if (status === 404) break;
+        if (status === 503 || status === 429) {
+          await sleep(1500 * attempt);
+          continue;
+        }
+        break;
+      }
     }
-
-    const data = await res.json();
-    const parts = data.candidates?.[0]?.content?.parts || [];
-    return parts.map((p) => p.text || "").join("\n");
-  } finally {
-    clearTimeout(timer);
   }
+
+  throw new Error(errors.slice(-3).join(" | ") || "Gemini call failed");
 }
 
 async function main() {

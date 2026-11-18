@@ -168,6 +168,44 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function listGeminiModels(apiKey) {
+  const url =
+    "https://generativelanguage.googleapis.com/v1beta/models?key=" +
+    encodeURIComponent(apiKey);
+  const res = await fetch(url);
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`ListModels HTTP ${res.status}: ${errText.slice(0, 200)}`);
+  }
+  const data = await res.json();
+  const names = (data.models || [])
+    .filter((m) => (m.supportedGenerationMethods || []).includes("generateContent"))
+    .map((m) => String(m.name || "").replace(/^models\//, ""))
+    .filter(Boolean);
+
+  // Prefer flash / small models for CI cost & speed
+  const preferred = names.filter((n) => /flash/i.test(n));
+  const rest = names.filter((n) => !/flash/i.test(n));
+  return [...preferred, ...rest];
+}
+
+async function resolveModelCandidates(apiKey) {
+  if (process.env.GEMINI_MODEL) {
+    return MODEL_CANDIDATES;
+  }
+  try {
+    const live = await listGeminiModels(apiKey);
+    if (live.length) {
+      const preferred = MODEL_CANDIDATES.filter((m) => live.includes(m));
+      const extras = live.filter((m) => !preferred.includes(m));
+      return [...preferred, ...extras];
+    }
+  } catch {
+    /* fall through to static list */
+  }
+  return MODEL_CANDIDATES;
+}
+
 async function callGeminiOnce(apiKey, model, system, user) {
   const url =
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent` +
@@ -229,8 +267,9 @@ async function callGemini(instructions, diff) {
     "```",
   ].join("\n");
 
+  const models = await resolveModelCandidates(apiKey);
   const errors = [];
-  for (const model of MODEL_CANDIDATES) {
+  for (const model of models.slice(0, 8)) {
     for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_MODEL; attempt++) {
       try {
         return await callGeminiOnce(apiKey, model, system, user);
@@ -241,7 +280,7 @@ async function callGemini(instructions, diff) {
         // retry transient overload / rate limits; skip dead models quickly
         if (status === 404) break;
         if (status === 503 || status === 429) {
-          await sleep(1500 * attempt);
+          await sleep(2500 * attempt);
           continue;
         }
         break;
@@ -249,7 +288,7 @@ async function callGemini(instructions, diff) {
     }
   }
 
-  throw new Error(errors.slice(-3).join(" | ") || "Gemini call failed");
+  throw new Error(errors.slice(-4).join(" | ") || "Gemini call failed");
 }
 
 async function main() {
